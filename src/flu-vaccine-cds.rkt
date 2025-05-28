@@ -23,15 +23,15 @@
   (define days (days-between (today) expired-date))
   (cond
     [(>= days 0)
-     (make-result 'critical
+     (make-result "critical"
                   (format "Influenza vaccination expired since ~a days"
                           days))]
     [(>= days -30)
-     (make-result 'warning
+     (make-result "warning"
                   (format "Influenza vaccination expires in ~a days"
                           (abs days)))]
     [else
-     (make-result 'info
+     (make-result "info"
                   (format "Influenza vaccination still active for ~a days"
                           (abs days)))]))
 
@@ -39,22 +39,22 @@
   (define days (days-between occurred-date (today)))
   (cond
     [(>= days 365)
-     (make-result 'critical
+     (make-result "critical"
                   (format "Last influenza vaccination taken ~a days ago"
                           days))]
     [(>= days 335)
-     (make-result 'warning
+     (make-result "warning"
                   (format "Last influenza vaccination taken ~a days ago"
                           days))]
     [else
-     (make-result 'info
+     (make-result "info"
                   (format "Last influenza vaccination taken ~a days ago"
                           days))]))
 
 (define (check-influenza-vaccination status occurred expired)
   (cond
     [(not (string=? status "completed"))
-     (make-result 'critical
+     (make-result "critical"
                   "Last influenza vaccination not completed")]
     [expired (check-influenza-vaccination-expired-date expired)]
     [occurred (check-influenza-vaccination-occurred-date occurred)]
