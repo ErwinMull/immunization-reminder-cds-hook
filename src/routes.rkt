@@ -4,6 +4,7 @@
 
 (require json
          web-server/http
+         web-server/dispatch
 
          "flu-vaccine-cds.rkt")
 
