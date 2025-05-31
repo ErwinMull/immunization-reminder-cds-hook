@@ -36,7 +36,7 @@
 ;;; ======================= Flu vaccination service ============================
 
 (define (get-first-from-bundle-entries fhir-bundle-jsexpr)
-  (define entries (hash-ref fhir-bundle-jsexpr 'total '()))
+  (define entries (hash-ref fhir-bundle-jsexpr 'entry '()))
   (and (> (length entries) 0)
        (car entries)))
 
@@ -50,7 +50,7 @@
     [else
      (define first-entry (get-first-from-bundle-entries flu-vaccination))
      (define result
-       (check-fhir-immunization (if result
+       (check-fhir-immunization (if first-entry
                                     (hash-ref first-entry 'resource (hasheq))
                                     (hasheq))))
      (response/jsexpr
