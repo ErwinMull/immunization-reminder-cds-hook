@@ -3,7 +3,9 @@
 ;;; =============================== Imports ====================================
 
 (require gregor
-         racket/string)
+         racket/string
+
+         "lens.rkt")
 
 ;;; =============================== Exports ====================================
 
@@ -57,13 +59,16 @@
 
 ;;; ====================== FHIR immunization handling ==========================
 
-(define (get-date-from-fhir-immunization fhir-immunization-jsexpr key)
-  (let ([tmp (hash-ref fhir-immunization-jsexpr key #f)])
-    (and tmp (with-handlers ([exn:gregor? (λ (exn) #f)])
-               (iso8601->date tmp)))))
+(define status-lens
+  (&hash 'status
+         (λ ()
+           (raise-exn:fail:flu "Invalid Immunization: no status"))))
+(define expiration-lens
+  (&hash 'expirationDate
+         (λ ()
+           (raise-exn:fail:flu "Invalid Immunization: no expiration date"))))
 
 (define (check-fhir-immunization fhir-immunization-jsexpr)
-  (let ([status (hash-ref fhir-immunization-jsexpr 'status "not-done")]
-        [expired (get-date-from-fhir-immunization fhir-immunization-jsexpr
-                                                   'expirationDate)])
+  (let ([status (status-lens fhir-immunization-jsexpr)]
+        [expired (iso8601->date (expiration-lens fhir-immunization-jsexpr))])
     (check-influenza-vaccination status expired)))

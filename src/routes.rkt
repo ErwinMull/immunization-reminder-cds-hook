@@ -6,7 +6,8 @@
          web-server/http
          web-server/dispatch
 
-         "flu-vaccine-cds.rkt")
+         "flu-vaccine-cds.rkt"
+         "lens.rkt")
 
 ;;; ================================ Export ====================================
 
@@ -35,38 +36,45 @@
 
 ;;; ======================= Flu vaccination service ============================
 
-(define (get-first-from-bundle-entries fhir-bundle-jsexpr)
-  (define entries (hash-ref fhir-bundle-jsexpr 'entry '()))
-  (and (> (length entries) 0)
-       (car entries)))
+(define &prefetch (&hash 'prefetch))
+(define &flu (&hash 'flu-vaccination))
+(define &entry (&hash 'entry))
+(define &0 (&list 0))
+(define &resource (&hash 'resource))
+
+(define &fhir-immunization-resource (lens-thread &prefetch
+                                                 &flu
+                                                 &entry
+                                                 &0
+                                                 &resource))
 
 (define (flu-vaccine-service req)
-  (define body (request-post-data/raw req))
-  (define parsed (bytes->jsexpr body))
-  (define prefetch (hash-ref parsed 'prefetch (hasheq)))
-  (define flu-vaccination (hash-ref prefetch 'flu-vaccination #f))
-  (cond
-    [(not flu-vaccination) (precondition-failed req)]
-    [else
-     (define first-entry (get-first-from-bundle-entries flu-vaccination))
-     (with-handlers ([exn:fail:flu? (λ (e)
-                                      (response/jsexpr
-                                       (hasheq 'cards
-                                               (list
-                                                (hasheq 'indicator "critical"
-                                                        'summary (exn-message e)
-                                                        'source source)))))])
-       (define result
-         (check-fhir-immunization
-          (if first-entry
-              (hash-ref first-entry 'resource (hasheq))
-              (hasheq))))
-       (response/jsexpr
-        (hasheq 'cards
-                (list
-                 (hasheq 'indicator (result-indicator result)
-                         'summary (result-message result)
-                         'source source)))))]))
+  (define parsed (bytes->jsexpr (request-post-data/raw req)))
+  (with-handlers ([exn:fail:lens? (λ (e)
+                                    (response/jsexpr
+                                     (hasheq 'card
+                                             (list
+                                              (hasheq 'indicator "ciritcal"
+                                                      'summary "Data error"
+                                                      'details (exn-message e)
+                                                      'source source)))))]
+                  [exn:fail:flu? (λ (e)
+                                   (response/jsexpr
+                                    (hasheq 'cards
+                                            (list
+                                             (hasheq 'indicator "critical"
+                                                     'summary "Workflow error"
+                                                     'details (exn-message e)
+                                                     'source source)))))])
+    (define fhir-immunization-resource (&fhir-immunization-resource parsed))
+    (define result
+      (check-fhir-immunization fhir-immunization-resource))
+    (response/jsexpr
+     (hasheq 'cards
+             (list
+              (hasheq 'indicator (result-indicator result)
+                      'summary (result-message result)
+                      'source source))))))
 
 ;;; ============================= Other routes =================================
 
