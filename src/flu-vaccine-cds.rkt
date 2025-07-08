@@ -13,7 +13,9 @@
 
 ;;; ============================== Exceptions ==================================
 
-(struct exn:fail:flu exn ())
+(struct exn:fail:flu exn ()
+  #:extra-constructor-name make-exn:fail:flu
+  #:transparent)
 
 (define (raise-exn:fail:flu message)
   (raise (exn:fail:flu message (current-continuation-marks))))
