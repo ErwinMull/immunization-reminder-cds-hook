@@ -8,7 +8,15 @@
 ;;; =============================== Exports ====================================
 
 (provide (struct-out result)
-         check-fhir-immunization)
+         check-fhir-immunization
+         exn:fail:flu?)
+
+;;; ============================== Exceptions ==================================
+
+(struct exn:fail:flu exn ())
+
+(define (raise-exn:fail:flu message)
+  (raise (exn:fail:flu message (current-continuation-marks))))
 
 ;;; =========================== Result structure ===============================
 
@@ -20,7 +28,7 @@
 ;;; ===================== Flu vaccination expiry check =========================
 
 (define (check-influenza-vaccination-expired-date expired-date)
-  (define days (days-between (today) expired-date))
+  (define days (days-between expired-date (today)))
   (cond
     [(>= days 0)
      (make-result "critical"
@@ -35,30 +43,15 @@
                   (format "Influenza vaccination still active for ~a days"
                           (abs days)))]))
 
-(define (check-influenza-vaccination-occurred-date occurred-date)
-  (define days (days-between occurred-date (today)))
-  (cond
-    [(>= days 365)
-     (make-result "critical"
-                  (format "Last influenza vaccination taken ~a days ago"
-                          days))]
-    [(>= days 335)
-     (make-result "warning"
-                  (format "Last influenza vaccination taken ~a days ago"
-                          days))]
-    [else
-     (make-result "info"
-                  (format "Last influenza vaccination taken ~a days ago"
-                          days))]))
-
-(define (check-influenza-vaccination status occurred expired)
+(define (check-influenza-vaccination status expired)
   (cond
     [(not (string=? status "completed"))
      (make-result "critical"
                   "Last influenza vaccination not completed")]
     [expired (check-influenza-vaccination-expired-date expired)]
-    [occurred (check-influenza-vaccination-occurred-date occurred)]
-    [else (raise "TODO: custom exception?")]))
+    [else
+     (raise-exn:fail:flu
+      (format "Invalid Immunization: completed but no datetimes given!"))]))
 
 ;;; ====================== FHIR immunization handling ==========================
 
@@ -69,8 +62,6 @@
 
 (define (check-fhir-immunization fhir-immunization-jsexpr)
   (let ([status (hash-ref fhir-immunization-jsexpr 'status "not-done")]
-        [occurred (get-date-from-fhir-immunization fhir-immunization-jsexpr
-                                                   'occurrenceDateTime)]
         [expired (get-date-from-fhir-immunization fhir-immunization-jsexpr
                                                    'expirationDate)])
-    (check-influenza-vaccination status occurred expired)))
+    (check-influenza-vaccination status expired)))

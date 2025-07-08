@@ -49,16 +49,24 @@
     [(not flu-vaccination) (precondition-failed req)]
     [else
      (define first-entry (get-first-from-bundle-entries flu-vaccination))
-     (define result
-       (check-fhir-immunization (if first-entry
-                                    (hash-ref first-entry 'resource (hasheq))
-                                    (hasheq))))
-     (response/jsexpr
-      (hasheq 'cards
-              (list
-               (hasheq 'indicator (result-indicator result)
-                       'summary (result-message result)
-                       'source source))))]))
+     (with-handlers ([exn:fail:flu? (λ (e)
+                                      (response/jsexpr
+                                       (hasheq 'cards
+                                               (list
+                                                (hasheq 'indicator "critical"
+                                                        'summary (exn-message e)
+                                                        'source source)))))])
+       (define result
+         (check-fhir-immunization
+          (if first-entry
+              (hash-ref first-entry 'resource (hasheq))
+              (hasheq))))
+       (response/jsexpr
+        (hasheq 'cards
+                (list
+                 (hasheq 'indicator (result-indicator result)
+                         'summary (result-message result)
+                         'source source)))))]))
 
 ;;; ============================= Other routes =================================
 
